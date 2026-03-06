@@ -1,0 +1,24 @@
+# /requirements.txt
+
+# ── Oanda API ──────────────────────────────────────────────
+oandapyV20              # Official Oanda REST/streaming Python wrapper
+
+# ── MetaTrader5 Bridge ─────────────────────────────────────
+MetaTrader5             # MT5 Python integration (Windows only)
+
+# ── Data & Numerics ────────────────────────────────────────
+pandas
+numpy
+
+# ── Technical Indicators ───────────────────────────────────
+pandas-ta               # EMA, RSI, MACD, ATR, BB, ADX — all in one
+
+# ── Backtesting & Reporting ────────────────────────────────
+openpyxl                # Excel report generation
+XlsxWriter              # Advanced Excel formatting + charts
+
+# ── Utilities ──────────────────────────────────────────────
+python-dotenv           # .env credentials management
+requests                # HTTP client (used by oandapyV20)
+pytz                    # Timezone handling for session filters
+schedule                # Task scheduling for live loop (future use)
