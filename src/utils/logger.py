@@ -1,57 +1,57 @@
-# /src/utils/logger.py
+# apex_scalper/src/utils/logger.py
 """
 APEX Scalper — Logging Utility
 ================================
-Centralised logger setup for console + rotating file output.
-Import get_logger() in any module to get a named logger instance.
+Windows-safe logger. Uses a plain FileHandler (mode='w') instead of
+RotatingFileHandler which throws PermissionError on Windows when it tries
+to os.rename() an open log file during rollover.
+
+Log file is overwritten on each new run. Console output always shown.
 """
 
 import logging
 import os
-from logging.handlers import RotatingFileHandler
-
 from config.settings import LOG_LEVEL, LOG_FILE
+
+_CONFIGURED = False   # Guard against duplicate handler attachment on re-import
 
 
 def get_logger(name: str) -> logging.Logger:
     """
-    Return a named logger with both console and file handlers attached.
-    Uses a rotating file handler to cap log file size at 5MB, keeping 3 backups.
+    Return a named logger. Root handlers are configured once on first call.
+    All child loggers inherit them automatically.
 
     Args:
-        name: Module name — typically pass __name__ when calling.
-
-    Returns:
-        Configured logging.Logger instance.
+        name: Module name — pass __name__ at call site.
     """
-    logger = logging.getLogger(name)
+    global _CONFIGURED
+    if not _CONFIGURED:
+        _setup_root_logger()
+        _CONFIGURED = True
+    return logging.getLogger(name)
 
-    # Avoid adding duplicate handlers if logger was already configured
-    if logger.handlers:
-        return logger
 
-    logger.setLevel(getattr(logging, LOG_LEVEL.upper(), logging.INFO))
+def _setup_root_logger():
+    """Attach console + file handlers to the root logger exactly once."""
+    root = logging.getLogger()
+    root.setLevel(getattr(logging, LOG_LEVEL.upper(), logging.INFO))
+    root.handlers.clear()   # Avoid duplicate handlers on hot-reloads
 
-    # ── Formatter ────────────────────────────────────────────────────────
     fmt = logging.Formatter(
         fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # ── Console Handler ──────────────────────────────────────────────────
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(fmt)
-    logger.addHandler(console_handler)
+    # ── Console ──────────────────────────────────────────────────────────
+    console = logging.StreamHandler()
+    console.setFormatter(fmt)
+    root.addHandler(console)
 
-    # ── Rotating File Handler ────────────────────────────────────────────
+    # ── File (plain, mode='w') ────────────────────────────────────────────
+    # mode='w' truncates the log at the start of each run.
+    # This avoids PermissionError [WinError 32] caused by RotatingFileHandler
+    # calling os.rename() on a file still open by the same process on Windows.
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    file_handler = RotatingFileHandler(
-        filename=LOG_FILE,
-        maxBytes=5 * 1024 * 1024,   # 5 MB per file
-        backupCount=3,               # Keep 3 old log files
-        encoding="utf-8"
-    )
-    file_handler.setFormatter(fmt)
-    logger.addHandler(file_handler)
-
-    return logger
+    fh = logging.FileHandler(LOG_FILE, mode="w", encoding="utf-8")
+    fh.setFormatter(fmt)
+    root.addHandler(fh)

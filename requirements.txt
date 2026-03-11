@@ -22,3 +22,4 @@ python-dotenv           # .env credentials management
 requests                # HTTP client (used by oandapyV20)
 pytz                    # Timezone handling for session filters
 schedule                # Task scheduling for live loop (future use)
+matplotlib              # plotting graphs for analytics

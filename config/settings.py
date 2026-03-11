@@ -16,11 +16,11 @@ OANDA_ENVIRONMENT   = "practice"                 # "practice" | "live"
 # ─────────────────────────────────────────────
 # BACKTESTING
 # ─────────────────────────────────────────────
-BACKTEST_START      = "2024-01-01"   # Backtest start date (YYYY-MM-DD)
-BACKTEST_END        = "2026-03-05"   # Backtest end date (YYYY-MM-DD)
-INITIAL_CAPITAL     = 10_000.0       # Starting account balance (USD)
-COMMISSION_PER_LOT  = 3.50          # Round-trip commission per lot (USD)
-SLIPPAGE_PIPS       = 0.5            # Assumed slippage in pips per fill
+BACKTEST_START      = "2024-01-01"      # Backtest start date (YYYY-MM-DD)
+BACKTEST_END        = "2026-03-05"      # Backtest end date (YYYY-MM-DD)
+INITIAL_CAPITAL     = 10_000.0          # Starting account balance (USD)
+COMMISSION_PER_LOT  = 3.50              # Round-trip commission per lot (USD)
+SLIPPAGE_PIPS       = 0.5               # Assumed slippage in pips per fill
 
 # ─────────────────────────────────────────────
 # MT5 CONNECTION
@@ -62,13 +62,13 @@ BASE_RISK_PCT       = 0.005    # 0.5% account risk per trade (base)
 
 # Score-tiered position sizing multipliers
 SCORE_SIZE_TIERS = {
-    (5, 6):  0.5,    # Minimum confluence  → 50% of base risk
+    (5, 6):  0.50,    # Minimum confluence  → 50% of base risk
     (7, 8):  0.75,   # Good confluence     → 75% of base risk
-    (9, 10): 1.0,    # Maximum confluence  → 100% of base risk
+    (9, 10): 1.00,    # Maximum confluence  → 100% of base risk
 }
 
 MAX_RISK_PCT        = 0.01     # Hard cap — never risk more than 1% per trade
-DAILY_DRAWDOWN_LIMIT= 0.05     # -2% daily drawdown → algo shuts down for the day
+DAILY_DRAWDOWN_LIMIT= 0.05     # -5% daily drawdown → algo shuts down for the day
 MAX_OPEN_TRADES_TOTAL = 12      # Maximum concurrent open trades across all instruments
 MAX_OPEN_TRADES_PER_INSTRUMENT = 3  # Max concurrent trades per single instrument
 
@@ -143,6 +143,14 @@ MAX_SCORE           = 10   # Maximum possible score
 # NEWS BLACKOUT
 # ─────────────────────────────────────────────
 NEWS_BLACKOUT_MINUTES = 15   # Pause trading ±15 min around high-impact events
+
+# ─────────────────────────────────────────────
+# DATA PIPELINE PATHS
+# ─────────────────────────────────────────────
+RAW_DATA_DIR    = "data/raw"         # Parquet files saved by 01_collect_data
+RESULTS_DIR     = "data/results"     # Backtest pickle saved by 02_run_backtest
+PLOTS_DIR       = "data/plots"       # PNG charts saved by 03_plot_results
+REPORTS_DIR     = "backtests/reports"  # Excel reports saved by 04_generate_report
 
 # ─────────────────────────────────────────────
 # LOGGING

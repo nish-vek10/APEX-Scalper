@@ -71,10 +71,11 @@ class BacktestEngine:
     # ─────────────────────────────────────────────────────────────────────
 
     def run(
-        self,
-        instruments: list = None,
-        from_date: str    = BACKTEST_START,
-        to_date: str      = BACKTEST_END,
+            self,
+            instruments: list = None,
+            from_date: str = BACKTEST_START,
+            to_date: str = BACKTEST_END,
+            preloaded_data: dict = None,
     ) -> dict:
         """
         Execute the full backtest across all specified instruments.
@@ -100,27 +101,41 @@ class BacktestEngine:
             f"  Capital:     ${INITIAL_CAPITAL:,.2f}"
         )
 
-        # Fetch all historical data via Oanda
-        oanda_client = OandaClient()
-        market_data  = MarketData(oanda_client)
+        # ── Data loading: use pre-loaded parquets if provided ─────────────
+        # When called from 02_run_backtest.py, preloaded_data is a dict:
+        #   {instrument: {"M5": df, "M15": df, "H1": df}}
+        # This skips Oanda API calls entirely — much faster on re-runs.
+        # When called from src/main.py (legacy), preloaded_data is None
+        # and it falls through to the original Oanda fetch path.
+        if preloaded_data is None:
+            oanda_client = OandaClient()
+            market_data = MarketData(oanda_client)
 
-        for instrument in instruments:
-            logger.info(f"Loading data for {instrument}...")
-            try:
-                market_data.load_instrument(
-                    instrument=instrument,
-                    from_date=from_date,
-                    to_date=to_date
-                )
-            except Exception as e:
-                logger.error(f"Failed to load {instrument}: {e}")
-                continue
+            for instrument in instruments:
+                logger.info(f"Loading data for {instrument}...")
+                try:
+                    market_data.load_instrument(
+                        instrument=instrument,
+                        from_date=from_date,
+                        to_date=to_date
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to load {instrument}: {e}")
+                    continue
 
         # Run backtest per instrument
         for instrument in instruments:
-            df_m5  = market_data.get(instrument, "M5")
-            df_m15 = market_data.get(instrument, "M15")
-            df_h1  = market_data.get(instrument, "H1")
+            if preloaded_data is not None:
+                # Use parquet data passed in from 02_run_backtest.py
+                inst_data = preloaded_data.get(instrument, {})
+                df_m5 = inst_data.get("M5", pd.DataFrame())
+                df_m15 = inst_data.get("M15", pd.DataFrame())
+                df_h1 = inst_data.get("H1", pd.DataFrame())
+            else:
+                # Original path: fetch from Oanda
+                df_m5 = market_data.get(instrument, "M5")
+                df_m15 = market_data.get(instrument, "M15")
+                df_h1 = market_data.get(instrument, "H1")
 
             if df_m5.empty:
                 logger.warning(f"No M5 data for {instrument} — skipping.")
