@@ -519,22 +519,75 @@ class BacktestEngine:
         calmar = abs(annual_return / max_dd_pct) if max_dd_pct != 0 else 0
 
         # ── PER-INSTRUMENT BREAKDOWN ──────────────────────────────────────
+        # Full metrics per instrument — keys must match downstream scripts
+        # (03_plot_results.py and 04_generate_report.py).
         per_instrument = {}
         for sym in trades_df["instrument"].unique():
-            sym_df   = trades_df[trades_df["instrument"] == sym]
+            sym_df = trades_df[trades_df["instrument"] == sym]
             sym_wins = sym_df[sym_df["net_pnl"] > 0]
+            sym_loss = sym_df[sym_df["net_pnl"] < 0]
+
+            gross_p = sym_wins["net_pnl"].sum() if len(sym_wins) > 0 else 0.0
+            gross_l = abs(sym_loss["net_pnl"].sum()) if len(sym_loss) > 0 else 0.0
+            net_p = sym_df["net_pnl"].sum()
+
+            # ── Per-instrument equity curve ───────────────────────────────
+            sym_eq = pd.Series(
+                [INITIAL_CAPITAL] +
+                [INITIAL_CAPITAL + sym_df["net_pnl"].iloc[:i + 1].sum()
+                 for i in range(len(sym_df))]
+            )
+            sym_peak = sym_eq.max()
+            sym_final = sym_eq.iloc[-1]
+            sym_dd_pct = ((sym_eq - sym_eq.cummax()) / sym_eq.cummax() * 100).min()
+            sym_ret_pct = (sym_final - INITIAL_CAPITAL) / INITIAL_CAPITAL * 100
+
+            # ── Per-instrument Sharpe ─────────────────────────────────────
+            sym_daily = (
+                    sym_df.groupby(pd.to_datetime(sym_df["open_time"]).dt.date)["net_pnl"]
+                    .sum() / INITIAL_CAPITAL
+            )
+            sym_sharpe = 0.0
+            sym_sortino = 0.0
+            if len(sym_daily) > 1 and sym_daily.std() > 0:
+                sym_sharpe = (sym_daily.mean() / sym_daily.std()) * np.sqrt(252)
+            sym_neg = sym_daily[sym_daily < 0]
+            if len(sym_neg) > 1 and sym_neg.std() > 0:
+                sym_sortino = (sym_daily.mean() / sym_neg.std()) * np.sqrt(252)
+
+            # ── Per-instrument Calmar ─────────────────────────────────────
+            days = max((pd.to_datetime(BACKTEST_END) - pd.to_datetime(BACKTEST_START)).days / 365, 1)
+            ann_ret = sym_ret_pct / days
+            sym_calmar = abs(ann_ret / sym_dd_pct) if sym_dd_pct != 0 else 0.0
+
+            sym_commission = sym_df["commission"].sum() if "commission" in sym_df.columns else 0.0
+
             per_instrument[sym] = {
-                "trades":        len(sym_df),
-                "wins":          len(sym_wins),
-                "losses":        len(sym_df[sym_df["net_pnl"] < 0]),
-                "win_rate":      len(sym_wins) / len(sym_df) if len(sym_df) > 0 else 0,
-                "net_pnl":       sym_df["net_pnl"].sum(),
-                "avg_pnl":       sym_df["net_pnl"].mean(),
-                "profit_factor": (
-                    sym_wins["net_pnl"].sum() /
-                    abs(sym_df[sym_df["net_pnl"] < 0]["net_pnl"].sum())
-                    if len(sym_df[sym_df["net_pnl"] < 0]) > 0 else float("inf")
-                ),
+                # Trade counts — keys match report/plot scripts exactly
+                "total_trades": len(sym_df),
+                "win_count": len(sym_wins),
+                "loss_count": len(sym_loss),
+                "win_rate_pct": len(sym_wins) / len(sym_df) * 100 if len(sym_df) > 0 else 0.0,
+                # P&L
+                "net_pnl": round(net_p, 2),
+                "gross_profit": round(gross_p, 2),
+                "gross_loss": round(gross_l, 2),
+                "profit_factor": round(gross_p / gross_l, 2) if gross_l > 0 else float("inf"),
+                "avg_win": round(sym_wins["net_pnl"].mean(), 2) if len(sym_wins) > 0 else 0.0,
+                "avg_loss": round(sym_loss["net_pnl"].mean(), 2) if len(sym_loss) > 0 else 0.0,
+                "avg_rr": round(abs(sym_wins["net_pnl"].mean() / sym_loss["net_pnl"].mean()), 2)
+                if len(sym_wins) > 0 and len(sym_loss) > 0 else 0.0,
+                "avg_pnl": round(sym_df["net_pnl"].mean(), 2),
+                "total_commission": round(sym_commission, 2),
+                # Equity
+                "final_equity": round(sym_final, 2),
+                "peak_equity": round(sym_peak, 2),
+                "total_return_pct": round(sym_ret_pct, 2),
+                # Risk & ratios
+                "max_drawdown_pct": round(sym_dd_pct, 2),
+                "sharpe_ratio": round(sym_sharpe, 2),
+                "sortino_ratio": round(sym_sortino, 2),
+                "calmar_ratio": round(sym_calmar, 2),
             }
 
         # ── MONTHLY RETURNS ───────────────────────────────────────────────

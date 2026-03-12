@@ -142,6 +142,12 @@ def collect_all():
             done += 1
             logger.info(f"  [{done}/{total}] Fetching {instrument} {tf} ...")
 
+            # ── Skip if parquet already exists ────────────────────────────
+            filepath = os.path.join(OUTPUT_DIR, f"{instrument}_{tf}.parquet")
+            if os.path.exists(filepath):
+                logger.info(f"    Already exists — skipping. (delete to re-fetch)")
+                continue
+
             try:
                 # Paginated fetch — handles Oanda's 5000-candle-per-request limit
                 df = client.get_candles_paginated(
@@ -159,7 +165,6 @@ def collect_all():
                 raw_bars = len(df)
                 df = compute_indicators(df)
 
-                filepath = os.path.join(OUTPUT_DIR, f"{instrument}_{tf}.parquet")
                 df.to_parquet(filepath)
 
                 logger.info(

@@ -32,52 +32,6 @@ INSTRUMENT_CONFIG = {
         "magic_number":     10001,           # MT5 magic number for trade identification
     },
 
-    # ── S&P 500 ───────────────────────────────────────────────────────────
-    "SPX500_USD": {
-        "mt5_symbol":       "SP500",
-        "display_name":     "S&P 500 (SPX500)",
-        "pip_size":         0.10,            # 1 pip = 0.10 index points
-        "pip_value_per_lot":1.0,             # USD per pip per lot
-        "min_lot":          1.0,
-        "lot_step":         1.0,
-        "max_lot":          100.0,
-        "typical_spread":   0.40,            # Points
-        "digits":           1,
-        "sessions": {
-            "premarket": ("12:00", "13:30"),
-            "ny":        ("13:30", "20:00"),
-            "active":    ("13:30", "20:00"), # NYSE hours UTC
-        },
-        "currency":         "USD",
-        "asset_class":      "index",
-        "atr_floor_pips":   5.0,
-        "atr_ceiling_pips": 100.0,
-        "magic_number":     10002,
-    },
-
-    # ── DAX ───────────────────────────────────────────────────────────────
-    "DE30_EUR": {
-        "mt5_symbol":       "GER30",
-        "display_name":     "DAX 40 (DE30)",
-        "pip_size":         0.10,
-        "pip_value_per_lot":1.0,             # EUR per pip (converted at runtime)
-        "min_lot":          1.0,
-        "lot_step":         1.0,
-        "max_lot":          100.0,
-        "typical_spread":   0.80,
-        "digits":           1,
-        "sessions": {
-            "frankfurt": ("07:00", "09:00"),
-            "london":    ("08:00", "16:30"),
-            "active":    ("07:00", "15:30"), # Xetra hours UTC
-        },
-        "currency":         "EUR",
-        "asset_class":      "index",
-        "atr_floor_pips":   10.0,
-        "atr_ceiling_pips": 200.0,
-        "magic_number":     10003,
-    },
-
     # ── Dow Jones ─────────────────────────────────────────────────────────
     "US30_USD": {
         "mt5_symbol":       "US30",
@@ -121,6 +75,75 @@ INSTRUMENT_CONFIG = {
         "atr_ceiling_pips": 200.0,
         "magic_number":     10005,
     },
+
+    # # ── WTI Crude Oil ─────────────────────────────────────────────────────
+    # "WTICO_USD": {
+    #     "mt5_symbol":       "USOIL",
+    #     "display_name":     "WTI Crude Oil (WTICO)",
+    #     "pip_size":         0.01,            # 1 pip = $0.01
+    #     "pip_value_per_lot":10.0,            # USD per pip per standard lot (1,000 barrels)
+    #     "min_lot":          1.0,
+    #     "lot_step":         1.0,
+    #     "max_lot":          100.0,
+    #     "typical_spread":   0.03,            # Typical spread in price units
+    #     "digits":           2,
+    #     "sessions": {
+    #         "london": ("07:00", "12:00"),    # Active through London + NY overlap
+    #         "ny":     ("12:00", "20:00"),
+    #         "active": ("07:00", "20:00"),    # UTC — most liquid window
+    #     },
+    #     "currency":         "USD",
+    #     "asset_class":      "commodity",
+    #     "atr_floor_pips":   5.0,
+    #     "atr_ceiling_pips": 150.0,
+    #     "magic_number":     10006,
+    # },
+    #
+    # # ── Euro / US Dollar ──────────────────────────────────────────────────
+    # "EUR_USD": {
+    #     "mt5_symbol":       "EURUSD",
+    #     "display_name":     "Euro / US Dollar (EURUSD)",
+    #     "pip_size":         0.0001,          # 1 pip = 0.0001
+    #     "pip_value_per_lot":10.0,            # USD per pip per standard lot (100k units)
+    #     "min_lot":          0.01,
+    #     "lot_step":         0.01,
+    #     "max_lot":          100.0,
+    #     "typical_spread":   0.8,             # Typical spread in pips
+    #     "digits":           5,
+    #     "sessions": {
+    #         "london": ("07:00", "12:00"),    # Peak liquidity window
+    #         "ny":     ("12:00", "17:00"),
+    #         "active": ("07:00", "17:00"),    # London open → NY close UTC
+    #     },
+    #     "currency":         "USD",
+    #     "asset_class":      "fx",
+    #     "atr_floor_pips":   3.0,
+    #     "atr_ceiling_pips": 50.0,
+    #     "magic_number":     10007,
+    # },
+    #
+    # # ── US Dollar / Japanese Yen ──────────────────────────────────────────
+    # "USD_JPY": {
+    #     "mt5_symbol":       "USDJPY",
+    #     "display_name":     "US Dollar / Japanese Yen (USDJPY)",
+    #     "pip_size":         0.01,            # 1 pip = 0.01 (JPY pairs use 2dp)
+    #     "pip_value_per_lot":9.0,             # USD per pip per lot (approx, varies with rate)
+    #     "min_lot":          0.01,
+    #     "lot_step":         0.01,
+    #     "max_lot":          100.0,
+    #     "typical_spread":   0.8,             # Typical spread in pips
+    #     "digits":           3,
+    #     "sessions": {
+    #         "tokyo":  ("00:00", "09:00"),    # Tokyo session UTC
+    #         "london": ("07:00", "17:00"),    # London session UTC
+    #         "active": ("00:00", "17:00"),    # Tokyo open → London close UTC
+    #     },
+    #     "currency":         "USD",
+    #     "asset_class":      "fx",
+    #     "atr_floor_pips":   3.0,
+    #     "atr_ceiling_pips": 80.0,
+    #     "magic_number":     10008,
+    # },
 }
 
 

@@ -9,16 +9,29 @@ Modify this file to tune strategy behaviour without touching core logic.
 # ─────────────────────────────────────────────
 # OANDA API CREDENTIALS
 # ─────────────────────────────────────────────
-OANDA_ACCOUNT_ID    = "001-004-17523704-003"          # Oanda account ID
-OANDA_API_KEY       = "37ee33b35f88e073a08d533849f7a24b-524c89ef15f36cfe532f0918a6aee4c2"             # Oanda API token
-OANDA_ENVIRONMENT   = "practice"                 # "practice" | "live"
+OANDA_ACCOUNT_ID    = "001-004-17523704-003"                                                    # Oanda account ID
+OANDA_API_KEY       = "37ee33b35f88e073a08d533849f7a24b-524c89ef15f36cfe532f0918a6aee4c2"       # Oanda API token
+OANDA_ENVIRONMENT   = "practice"                                                                # "practice" | "live"
 
 # ─────────────────────────────────────────────
 # BACKTESTING
 # ─────────────────────────────────────────────
-BACKTEST_START      = "2024-01-01"      # Backtest start date (YYYY-MM-DD)
-BACKTEST_END        = "2026-03-05"      # Backtest end date (YYYY-MM-DD)
-INITIAL_CAPITAL     = 10_000.0          # Starting account balance (USD)
+BACKTEST_START      = "2025-03-11"      # Backtest start date (YYYY-MM-DD)
+BACKTEST_END        = "2026-03-11"      # Backtest end date (YYYY-MM-DD)
+
+# ─────────────────────────────────────────────────────────────────────────
+# CAPITAL & RISK CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────
+
+INITIAL_CAPITAL     = 100_000.0   # Starting account balance ($)
+
+# Risk mode toggle — controls how position size is calculated each trade
+RISK_MODE           = "static"   # Toggle: "static" or "dynamic"
+
+BASE_RISK_PCT       = 0.005       # Base risk per trade (0.5% of reference balance)
+MAX_RISK_PCT        = 0.005       # Hard cap — never risk more than 0.5% per trade
+                                  # (matches BASE_RISK_PCT at full 1.0x multiplier)
+
 COMMISSION_PER_LOT  = 3.50              # Round-trip commission per lot (USD)
 SLIPPAGE_PIPS       = 0.5               # Assumed slippage in pips per fill
 
@@ -34,11 +47,9 @@ MT5_SERVER          = "YOUR_BROKER_SERVER"       # MT5 broker server name
 # ─────────────────────────────────────────────
 # Oanda instrument names → MT5 symbol names
 INSTRUMENTS = {
-    "XAU_USD":    "XAUUSD",     # Gold
-    "SPX500_USD": "SP500",      # S&P 500
-    "DE30_EUR":   "GER30",      # DAX
-    "US30_USD":   "US30",       # Dow Jones
-    "NAS100_USD": "NAS100",     # Nasdaq 100
+    "XAU_USD":    "XAUUSD",     # Gold               — steady trend, retained
+    "US30_USD":   "US30",       # Dow Jones          — best performer, retained
+    "NAS100_USD": "NAS100",     # Nasdaq 100         — strong growth, retained
 }
 
 # ─────────────────────────────────────────────
@@ -58,19 +69,25 @@ LOOKBACK = {
 # ─────────────────────────────────────────────
 # RISK MANAGEMENT
 # ─────────────────────────────────────────────
-BASE_RISK_PCT       = 0.005    # 0.5% account risk per trade (base)
 
 # Score-tiered position sizing multipliers
+# Determines what fraction of BASE_RISK_PCT is applied per confluence score tier
 SCORE_SIZE_TIERS = {
-    (5, 6):  0.50,    # Minimum confluence  → 50% of base risk
-    (7, 8):  0.75,   # Good confluence     → 75% of base risk
-    (9, 10): 1.00,    # Maximum confluence  → 100% of base risk
+    (5, 6):  0.50,    # Minimum confluence  → 50%  of base risk (0.25%)
+    (7, 8):  0.75,    # Good confluence     → 75%  of base risk (0.375%)
+    (9, 10): 1.00,    # Maximum confluence  → 100% of base risk (0.50%)
 }
 
-MAX_RISK_PCT        = 0.01     # Hard cap — never risk more than 1% per trade
-DAILY_DRAWDOWN_LIMIT= 0.05     # -5% daily drawdown → algo shuts down for the day
-MAX_OPEN_TRADES_TOTAL = 12      # Maximum concurrent open trades across all instruments
-MAX_OPEN_TRADES_PER_INSTRUMENT = 3  # Max concurrent trades per single instrument
+DAILY_DRAWDOWN_LIMIT           = 0.05    # -5% daily drawdown → halt trading for the day
+MAX_OPEN_TRADES_TOTAL          = 12      # Max concurrent open trades across all instruments
+MAX_OPEN_TRADES_PER_INSTRUMENT = 3       # Max concurrent open trades per single instrument
+
+# Per-instrument hard lot cap — safety ceiling regardless of account size or risk mode
+MAX_LOTS_PER_INSTRUMENT = {
+    "XAU_USD":    2.0,    # Gold       — 2 lots max
+    "US30_USD":   5.0,    # Dow Jones  — 5 lots max
+    "NAS100_USD": 5.0,    # Nasdaq 100 — 5 lots max
+}
 
 # ─────────────────────────────────────────────
 # STOP LOSS & TAKE PROFIT

@@ -26,7 +26,11 @@ from config.settings import (
     SL_ATR_MULTIPLIER,
     TP_TIERS,
     SLIPPAGE_PIPS,
+    RISK_MODE,                  # "static" | "dynamic" — controls lot sizing reference
+    INITIAL_CAPITAL,            # Used as fixed reference balance in static mode
+    MAX_LOTS_PER_INSTRUMENT,    # Per-instrument hard lot cap
 )
+
 from config.instruments import get_instrument
 from src.utils.logger import get_logger
 
@@ -94,9 +98,23 @@ class PositionSizer:
             return result
 
         # ── 2. CALCULATE RISK AMOUNT ──────────────────────────────────────
+        """
+        Static mode  → always size off INITIAL_CAPITAL ($10,000 fixed).
+                       Lot sizes remain constant regardless of account growth.
+                       Conservative — prevents runaway sizing on winning streaks.
+        Dynamic mode → size off current live equity (account_balance).
+                       Lot sizes compound as the account grows or shrinks.
+                       Aggressive — higher upside ceiling, higher drawdown risk.
+        """
+
+        if RISK_MODE == "static":
+            reference_balance = INITIAL_CAPITAL  # Fixed $10k throughout backtest
+        else:
+            reference_balance = account_balance  # Live equity at trade entry
+
         effective_risk_pct = BASE_RISK_PCT * size_multiplier
-        effective_risk_pct = min(effective_risk_pct, MAX_RISK_PCT)   # Hard cap
-        risk_amount        = account_balance * effective_risk_pct
+        effective_risk_pct = min(effective_risk_pct, MAX_RISK_PCT)  # Hard cap
+        risk_amount = reference_balance * effective_risk_pct
 
         # ── 3. CALCULATE LOT SIZE ─────────────────────────────────────────
         # Adjust sl_pips for slippage
@@ -104,8 +122,36 @@ class PositionSizer:
         lot_size = risk_amount / (adjusted_sl_pips * pip_value_per_lot)
 
         # ── 4. CLIP AND ROUND TO VALID LOT SIZE ──────────────────────────
-        lot_size = max(min_lot, min(lot_size, max_lot))
+        lot_size = min(lot_size, max_lot)  # Apply broker max first
         lot_size = self._round_to_step(lot_size, lot_step)
+
+        # Apply per-instrument hard lot cap (safety ceiling defined in settings)
+        instrument_cap = MAX_LOTS_PER_INSTRUMENT.get(instrument)
+        if instrument_cap:
+            lot_size = min(lot_size, instrument_cap)
+
+        # ── RISK GUARD: reject trade if min_lot would breach MAX_RISK_PCT ──
+        # This prevents silent lot inflation when the calculated size is below
+        # the broker's minimum — common on indices (US30, NAS100) at small
+        # account sizes where 1 lot already risks far more than intended.
+        if lot_size < min_lot:
+            # Check what the actual dollar risk would be at min_lot
+            min_lot_risk = min_lot * adjusted_sl_pips * pip_value_per_lot
+            max_allowed_risk = reference_balance * MAX_RISK_PCT
+
+            if min_lot_risk > max_allowed_risk * 1.5:  # 50% tolerance buffer
+                result["reason"] = (
+                    f"Min lot risk ${min_lot_risk:.2f} exceeds max allowed "
+                    f"${max_allowed_risk:.2f} — trade skipped to protect capital"
+                )
+                logger.debug(
+                    f"[{instrument}] Trade skipped — min lot risk "
+                    f"${min_lot_risk:.2f} > max allowed ${max_allowed_risk:.2f}"
+                )
+                return result
+
+            # Within tolerance — use min_lot and accept slightly elevated risk
+            lot_size = min_lot
 
         if lot_size <= 0:
             result["reason"] = "Calculated lot size is zero after rounding"
@@ -142,10 +188,10 @@ class PositionSizer:
         })
 
         logger.debug(
-            f"Position sized: {instrument} {direction.upper()} | "
-            f"Lots: {lot_size} | SL: {sl_pips:.1f} pips | "
-            f"Risk: ${actual_risk:.2f} ({effective_risk_pct*100:.2f}%) | "
-            f"TPs: {tp_prices}"
+            f"[{RISK_MODE.upper()}] {instrument} {direction.upper()} | "
+            f"Ref: ${reference_balance:,.0f} | Lots: {lot_size} | "
+            f"SL: {sl_pips:.1f} pips | Risk: ${actual_risk:.2f} "
+            f"({effective_risk_pct * 100:.3f}%) | TPs: {tp_prices}"
         )
         return result
 

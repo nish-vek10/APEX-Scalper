@@ -479,20 +479,23 @@ def _build_monthly_heatmap(wb: Workbook, trades_df: pd.DataFrame,
 
         annual_pnl = 0.0
         for m_num in range(1, 13):
-            col  = m_num + 1
-            val  = pivot.loc[year, m_num] if m_num in pivot.columns else 0.0
-            val  = float(val) if not pd.isna(val) else 0.0
+            col = m_num + 1
+            val = pivot.loc[year, m_num] if m_num in pivot.columns else 0.0
+            val = float(val) if not pd.isna(val) else 0.0
             annual_pnl += val
 
-            hex_bg = _heat_color(val, max_abs)
-            txt_color = "FFFFFF" if abs(val / max_abs) > 0.65 else "000000" if max_abs > 0 else "000000"
+            # Display monthly return as % of initial capital
+            val_pct = val / INITIAL_CAPITAL * 100
 
-            cell = ws.cell(row=row, column=col, value=val)
-            cell.font          = _font(9, bold=(val != 0), color=txt_color)
-            cell.fill          = _fill(hex_bg)
-            cell.alignment     = _align("center")
-            cell.border        = _border()
-            cell.number_format = '#,##0.00'
+            hex_bg = _heat_color(val, max_abs)
+            txt_color = "FFFFFF" if max_abs > 0 and abs(val / max_abs) > 0.65 else "000000"
+
+            cell = ws.cell(row=row, column=col, value=val_pct / 100)
+            cell.font = _font(9, bold=(val != 0), color=txt_color)
+            cell.fill = _fill(hex_bg)
+            cell.alignment = _align("center")
+            cell.border = _border()
+            cell.number_format = "0.00%"
 
         # Annual P&L
         ann_bg, ann_txt = _pnl_color(annual_pnl)
@@ -513,29 +516,52 @@ def _build_monthly_heatmap(wb: Workbook, trades_df: pd.DataFrame,
         cell15.number_format = "0.00%"
         ws.row_dimensions[row].height = 18
 
-    # Totals row
-    totals_row = header_row + 1 + len(all_years)
-    ws.cell(row=totals_row, column=1, value="TOTAL").font      = _font(10, bold=True, color=C["col_text"])
-    ws.cell(row=totals_row, column=1).fill      = _fill(C["col_bg"])
-    ws.cell(row=totals_row, column=1).alignment = _align("center")
-    ws.cell(row=totals_row, column=1).border    = _border()
+        # ── TOTAL row — monthly column sums + grand total P&L + grand total Ret% ──
+        totals_row = header_row + 1 + len(all_years)
+        ws.cell(row=totals_row, column=1, value="TOTAL").font = _font(10, bold=True, color=C["col_text"])
+        ws.cell(row=totals_row, column=1).fill = _fill(C["col_bg"])
+        ws.cell(row=totals_row, column=1).alignment = _align("center")
+        ws.cell(row=totals_row, column=1).border = _border()
 
-    for m_num in range(1, 13):
-        col       = m_num + 1
-        col_total = sum(
-            float(pivot.loc[yr, m_num]) if m_num in pivot.columns else 0.0
-            for yr in all_years
-            if not pd.isna(pivot.loc[yr, m_num] if m_num in pivot.columns else 0.0)
-        )
-        bg_v, txt_v = _pnl_color(col_total)
-        cell = ws.cell(row=totals_row, column=col, value=col_total)
-        cell.font          = _font(9, bold=True, color=txt_v)
-        cell.fill          = _fill(bg_v)
-        cell.alignment     = _align("center")
-        cell.border        = _border()
-        cell.number_format = '#,##0.00'
+        grand_total_pnl = 0.0
+        for m_num in range(1, 13):
+            col = m_num + 1
+            col_total = sum(
+                float(pivot.loc[yr, m_num]) if (m_num in pivot.columns and
+                                                not pd.isna(pivot.loc[yr, m_num])) else 0.0
+                for yr in all_years
+            )
+            grand_total_pnl += col_total
 
-    ws.row_dimensions[totals_row].height = 20
+            # Show monthly totals as % of account
+            col_pct = col_total / INITIAL_CAPITAL * 100
+            bg_v, txt_v = _pnl_color(col_total)
+            cell = ws.cell(row=totals_row, column=col, value=col_pct / 100)
+            cell.font = _font(9, bold=True, color=txt_v)
+            cell.fill = _fill(bg_v)
+            cell.alignment = _align("center")
+            cell.border = _border()
+            cell.number_format = "0.00%"
+
+        # Grand total Annual P&L (sum of all years)
+        gt_bg, gt_txt = _pnl_color(grand_total_pnl)
+        cell14 = ws.cell(row=totals_row, column=14, value=grand_total_pnl)
+        cell14.font = _font(10, bold=True, color=gt_txt)
+        cell14.fill = _fill(gt_bg)
+        cell14.alignment = _align("center")
+        cell14.border = _border()
+        cell14.number_format = '#,##0.00'
+
+        # Grand total Annual Ret % (total P&L / initial capital)
+        grand_total_ret = grand_total_pnl / INITIAL_CAPITAL
+        cell15 = ws.cell(row=totals_row, column=15, value=grand_total_ret)
+        cell15.font = _font(10, bold=True, color=gt_txt)
+        cell15.fill = _fill(gt_bg)
+        cell15.alignment = _align("center")
+        cell15.border = _border()
+        cell15.number_format = "0.00%"
+
+        ws.row_dimensions[totals_row].height = 22
 
     # Column widths
     ws.column_dimensions["A"].width = 10
@@ -770,9 +796,19 @@ def generate_report():
         if inst_trades.empty:
             continue
         # Build heatmap block in a temp wb, then we'll note it
+        # Strip characters Excel prohibits in sheet names: / \ ? * [ ] :
+        safe_name = (INSTRUMENT_CONFIG[symbol]["display_name"]
+                     .replace("/", "")
+                     .replace("\\", "")
+                     .replace("?", "")
+                     .replace("*", "")
+                     .replace("[", "")
+                     .replace("]", "")
+                     .replace(":", "")
+                     .strip()[:12])  # Excel sheet names max 31 chars — 12 leaves room for prefix
         _build_monthly_heatmap(wb, inst_trades, metrics,
                                sheet_num=4,
-                               sheet_title=f"4. Returns {INSTRUMENT_CONFIG[symbol]['display_name'][:8]}",
+                               sheet_title=f"4. {safe_name}",
                                symbol=symbol)
 
     logger.info("  [5/6] Sheet 5 — Trade Log ...")

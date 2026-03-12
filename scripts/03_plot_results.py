@@ -39,6 +39,8 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+TAG_NAME = "run_v4-static"
+
 # ─────────────────────────────────────────────
 # CONFIGURABLE VISUAL STYLE
 # ─────────────────────────────────────────────
@@ -61,12 +63,13 @@ STYLE = {
 
 # Distinct colour per instrument + portfolio
 COLOURS = {
-    "XAU_USD":    "#F4D03F",   # Gold
-    "SPX500_USD": "#27AE60",   # Green
-    "DE30_EUR":   "#3498DB",   # Blue
-    "US30_USD":   "#E67E22",   # Orange
-    "NAS100_USD": "#9B59B6",   # Purple
-    "portfolio":  "#FFFFFF",   # White
+    "XAU_USD":    "#F4D03F",   # Gold             — yellow
+    "US30_USD":   "#E67E22",   # Dow Jones         — orange
+    "NAS100_USD": "#9B59B6",   # Nasdaq 100        — purple
+    "WTICO_USD":  "#E84855",   # WTI Crude Oil     — red
+    "EUR_USD":    "#27AE60",   # Euro / USD        — green
+    "USD_JPY":    "#3498DB",   # USD / JPY         — blue
+    "portfolio":  "#FFFFFF",   # Portfolio Combined — white
 }
 
 
@@ -119,8 +122,8 @@ def _drawdown(eq: pd.Series) -> pd.Series:
 
 
 def _save(fig, filename: str):
-    """Save figure to PLOTS_DIR with consistent settings."""
-    path = os.path.join(PLOTS_DIR, filename)
+    """Save figure to PLOTS_DIR/{TAG_NAME}/ subfolder with consistent settings."""
+    path = os.path.join(PLOTS_DIR, TAG_NAME, filename)
     fig.savefig(path, dpi=STYLE["dpi"], bbox_inches="tight",
                 facecolor=STYLE["bg"], edgecolor="none")
     plt.close(fig)
@@ -438,6 +441,7 @@ def plot_all_in_one(trades_df: pd.DataFrame, metrics: dict):
 
 def plot_all():
     os.makedirs(PLOTS_DIR, exist_ok=True)
+    os.makedirs(os.path.join(PLOTS_DIR, TAG_NAME), exist_ok=True)
 
     pkl_path = os.path.join(RESULTS_DIR, "backtest_results.pkl")
     if not os.path.exists(pkl_path):
